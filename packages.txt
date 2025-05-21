@@ -1,2 +1,2 @@
 tesseract-ocr
-poppler-utils     # needed by pdf2image
+poppler-utils
