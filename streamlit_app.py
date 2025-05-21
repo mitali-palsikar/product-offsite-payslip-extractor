@@ -1,5 +1,5 @@
 import streamlit as st
-import pymupdf                      # ‘fitz’ is available automatically
+import pymupdf
 import pytesseract
 from pdf2image import convert_from_path
 from PIL import Image
