@@ -7,10 +7,21 @@ import pytesseract
 # ---------- tiny helper -----------------------------------------------------
 def extract_fields(text: str) -> dict:
     patterns = {
-        "name":    r"(?:Employee\s+)?Name\s*[:\-]?\s*([A-Z][A-Za-z\-\s']+)",
-        "net_pay": r"(?:Net\s+(?:Pay|Payment))\s*[:\-]?\s*£?\s*([\d,]+\.\d{2})",
-        "date":    r"(?:Pay\s*)?Date\s*[:\-]?\s*([0-3]?\d\s*[A-Za-z]{3,9}\s*\d{4})",
+        # Name can appear under several headings
+        "name"   : r"(?:(?:Employee|Staff|Payee|Name)\\s*(?:No\\.)?\\s*[:\\-]?\\s*)([A-Z][A-Za-z\\-\\s']{2,})",
+        # Net pay often shows as “Net Pay”, “Net Payment” or “Take-home pay”
+        "net_pay": r"(?:(?:Net\\s*(?:Pay|Payment)|Take\\s*home\\s*pay))\\s*[:\\-]?\\s*£?\\s*([\\d,]+\\.\\d{2})",
+        
+        # Date headings vary the most – cover Pay Date, Payment Date, Period Ending, Week Ending
+        "date"   : r"(?:(?:Pay(?:ment)?\\s*Date|Period\\s*(?:End(?:ing)?|Date)|Week\\s*End(?:ing)?|Date))\\s*[:\\-]?\\s*"
+           r"([0-3]?\\d[\\s/.-]?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*[\\s/.-]?\\d{2,4})"
     }
+
+    # patterns = {
+    #     "name":    r"(?:Employee\s+)?Name\s*[:\-]?\s*([A-Z][A-Za-z\-\s']+)",
+    #     "net_pay": r"(?:Net\s+(?:Pay|Payment))\s*[:\-]?\s*£?\s*([\d,]+\.\d{2})",
+    #     "date":    r"(?:Pay\s*)?Date\s*[:\-]?\s*([0-3]?\d\s*[A-Za-z]{3,9}\s*\d{4})",
+    # }
     return {k: (m.group(1) if (m := re.search(p, text, re.I)) else None)
             for k, p in patterns.items()}
 # ---------------------------------------------------------------------------
