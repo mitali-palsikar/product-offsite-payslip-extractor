@@ -1,8 +1,7 @@
-# ⬇️ Colab Cell #1 – one-shot install (~20 s)
-!apt-get -qq install tesseract-ocr libtesseract-dev
-!pip install --quiet pytesseract pillow pdf2image fitz
+import streamlit as st
+import pathlib, io
+# (plus your extract_fields() helper defined above)
 
-# ⬇️ Colab Cell #2 – imports & helpers
 import pytesseract, re, fitz, pathlib, io, base64
 from pdf2image import convert_from_path
 from PIL import Image
@@ -21,13 +20,25 @@ def extract_fields(text):
     return {k:(m.group(1) if (m:=re.search(v,text,re.I)) else None)
             for k,v in patterns.items()}
 
-# ⬇️ Colab Cell #3 – upload, OCR, parse
-up = files.upload(); f = next(iter(up))
-if pathlib.Path(f).suffix.lower() == ".pdf":
-    img = pdf_page_to_image(f)
-else:
-    img = Image.open(f)
+st.title("Payslip Extractor MVP")
 
-text = pytesseract.image_to_string(img)
-print(text[:800])               # peek if you’re curious
-print("\nEXTRACTED:", extract_fields(text))
+uploaded = st.file_uploader(
+    "Upload your UK payslip",
+    type=["pdf", "png", "jpg", "jpeg"]
+)
+
+if uploaded:
+    suffix = pathlib.Path(uploaded.name).suffix.lower()
+
+    if suffix == ".pdf":
+        pdf_bytes = uploaded.read()                # read once
+        page = fitz.open(stream=pdf_bytes, filetype="pdf")[0]
+        pix  = page.get_pixmap(dpi=300)
+        img  = Image.open(io.BytesIO(pix.tobytes()))  # Pillow needs a file-like obj
+    else:
+        img = Image.open(uploaded)                 # uploaded is file-like already
+
+    st.image(img, caption="Payslip preview", use_column_width=True)
+
+    text = pytesseract.image_to_string(img)
+    st.json(extract_fields(text))
