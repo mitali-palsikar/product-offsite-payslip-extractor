@@ -3,6 +3,7 @@ from transformers import pipeline
 from pdf2image import convert_from_path
 from PIL import Image
 from io import BytesIO
+import fitz
 
 # Load the LayoutLM-based Document QA model
 @st.cache_resource
@@ -35,10 +36,22 @@ if uploaded_file:
     # convert PDF → PIL image if needed
     suffix = uploaded_file.name.lower().split(".")[-1]
     if suffix == "pdf":
-        pages = convert_from_path(BytesIO(uploaded_file.read()), dpi=300, first_page=1, last_page=1)
-        img = pages[0]
+        pdf_bytes = uploaded_file.read()
+        # open PDF from bytes
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        page = doc[0]
+        # render at 300 dpi
+        pix = page.get_pixmap(dpi=300)
+        # convert to PIL.Image
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
     else:
         img = Image.open(uploaded_file)
+    
+    # if suffix == "pdf":
+    #     pages = convert_from_path(BytesIO(uploaded_file.read()), dpi=300, first_page=1, last_page=1)
+    #     img = pages[0]
+    # else:
+    #     img = Image.open(uploaded_file)
 
     st.image(img, caption="Payslip preview", use_column_width=True)
     result = extract_fields_from_image(img)
