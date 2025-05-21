@@ -1,4 +1,7 @@
-import streamlit as st, fitz, pathlib, pytesseract, re
+import streamlit as st
+import pymupdf                      # ‘fitz’ is available automatically
+import pytesseract
+from pdf2image import convert_from_path
 from PIL import Image
 st.title("Payslip Extractor MVP")
 f = st.file_uploader("Upload your UK payslip", type=["pdf","png","jpg","jpeg"])
