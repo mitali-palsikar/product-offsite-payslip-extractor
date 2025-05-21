@@ -1,0 +1,5 @@
+streamlit
+pymupdf           # ‘fitz’ import
+pdf2image
+pillow
+pytesseract
