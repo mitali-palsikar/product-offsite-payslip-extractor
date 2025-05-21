@@ -1,6 +1,3 @@
-# On Colab, create a quick repo (one file)
-%%bash
-cat > streamlit_app.py <<'PY'
 import streamlit as st, fitz, pathlib, pytesseract, re
 from PIL import Image
 st.title("Payslip Extractor MVP")
