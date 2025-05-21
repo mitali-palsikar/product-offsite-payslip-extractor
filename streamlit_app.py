@@ -1,52 +1,45 @@
 import streamlit as st
-import io, pathlib, re
-import fitz                    # PyMuPDF (imported as “fitz”)
+from transformers import pipeline
+from pdf2image import convert_from_path
 from PIL import Image
-import pytesseract
+from io import BytesIO
 
-# ---------- tiny helper -----------------------------------------------------
-def extract_fields(text: str) -> dict:
-    patterns = {
-        # Name can appear under several headings
-        "name"   : r"(?:(?:Employee|Staff|Payee|Name)\\s*(?:No\\.)?\\s*[:\\-]?\\s*)([A-Z][A-Za-z\\-\\s']{2,})",
-        # Net pay often shows as “Net Pay”, “Net Payment” or “Take-home pay”
-        "net_pay": r"(?:(?:Net\\s*(?:Pay|Payment)|Take\\s*home\\s*pay))\\s*[:\\-]?\\s*£?\\s*([\\d,]+\\.\\d{2})",
-        
-        # Date headings vary the most – cover Pay Date, Payment Date, Period Ending, Week Ending
-        "date"   : r"(?:(?:Pay(?:ment)?\\s*Date|Period\\s*(?:End(?:ing)?|Date)|Week\\s*End(?:ing)?|Date))\\s*[:\\-]?\\s*"
-           r"([0-3]?\\d[\\s/.-]?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*[\\s/.-]?\\d{2,4})"
+# Load the LayoutLM-based Document QA model
+@st.cache_resource
+def load_doc_qa():
+    return pipeline(
+        "document-question-answering",
+        model="impira/layoutlm-document-qa",
+        tokenizer="impira/layoutlm-document-qa",
+        device=0  # or -1 if you don’t have GPU
+    )
+
+def extract_fields_from_image(img: Image.Image) -> dict:
+    questions = {
+        "name":    "What is the employee’s name?",
+        "net_pay": "What is the net pay?",
+        "date":    "What is the pay date?"
     }
+    answers = {}
+    for key, q in questions.items():
+        out = doc_qa(image=img, question=q)
+        answers[key] = out.get("answer", "").strip()
+    return answers
 
-    # patterns = {
-    #     "name":    r"(?:Employee\s+)?Name\s*[:\-]?\s*([A-Z][A-Za-z\-\s']+)",
-    #     "net_pay": r"(?:Net\s+(?:Pay|Payment))\s*[:\-]?\s*£?\s*([\d,]+\.\d{2})",
-    #     "date":    r"(?:Pay\s*)?Date\s*[:\-]?\s*([0-3]?\d\s*[A-Za-z]{3,9}\s*\d{4})",
-    # }
-    return {k: (m.group(1) if (m := re.search(p, text, re.I)) else None)
-            for k, p in patterns.items()}
-# ---------------------------------------------------------------------------
+doc_qa = load_doc_qa()
 
 st.title("Payslip Extractor MVP")
 
-uploaded = st.file_uploader(
-    "Upload a UK payslip (PDF or image)",
-    type=["pdf", "png", "jpg", "jpeg"]
-)
-
-if uploaded:
-    suffix = pathlib.Path(uploaded.name).suffix.lower()
-
-    # --- turn whatever we got into a Pillow Image --------------------------
-    if suffix == ".pdf":
-        pdf_bytes = uploaded.read()                        # read once
-        page      = fitz.open(stream=pdf_bytes, filetype="pdf")[0]
-        pix       = page.get_pixmap(dpi=300)
-        img       = Image.open(io.BytesIO(pix.tobytes()))
+uploaded_file = st.file_uploader("Upload your UK payslip", type=["pdf","png","jpg","jpeg"])
+if uploaded_file:
+    # convert PDF → PIL image if needed
+    suffix = uploaded_file.name.lower().split(".")[-1]
+    if suffix == "pdf":
+        pages = convert_from_path(BytesIO(uploaded_file.read()), dpi=300, first_page=1, last_page=1)
+        img = pages[0]
     else:
-        img = Image.open(uploaded)                         # already file-like
-    # -----------------------------------------------------------------------
+        img = Image.open(uploaded_file)
 
     st.image(img, caption="Payslip preview", use_column_width=True)
-
-    ocr_text = pytesseract.image_to_string(img)
-    st.json(extract_fields(ocr_text))
+    result = extract_fields_from_image(img)
+    st.json(result)
