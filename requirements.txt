@@ -1,5 +1,8 @@
 streamlit
 pymupdf           # ‘fitz’ import
-pdf2image
 pillow
 pytesseract
+transformers[document-question-answering]
+torch
+torchvision
+pdf2image
